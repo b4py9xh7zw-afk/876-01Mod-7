@@ -18,6 +18,10 @@ class ExamRecord extends Model
         'status',
     ];
 
+    protected $appends = [
+        'appeal_status',
+    ];
+
     protected $casts = [
         'user_id' => 'integer',
         'exam_paper_id' => 'integer',
@@ -50,5 +54,33 @@ class ExamRecord extends Model
     public function answers()
     {
         return $this->hasMany(ExamRecordAnswer::class, 'exam_record_id');
+    }
+
+    public function appeals()
+    {
+        return $this->hasMany(ScoreAppeal::class, 'exam_record_id');
+    }
+
+    public function latestAppeal()
+    {
+        return $this->hasOne(ScoreAppeal::class, 'exam_record_id')->latest();
+    }
+
+    public function getAppealStatusAttribute()
+    {
+        $appeal = $this->latestAppeal;
+        if (!$appeal) {
+            return null;
+        }
+        return [
+            'id' => $appeal->id,
+            'status' => $appeal->status,
+            'status_text' => ScoreAppeal::STATUSES[$appeal->status] ?? $appeal->status,
+            'appeal_type' => $appeal->appeal_type,
+            'appeal_type_text' => ScoreAppeal::APPEAL_TYPES[$appeal->appeal_type] ?? $appeal->appeal_type,
+            'is_closed' => $appeal->isClosed(),
+            'final_score' => $appeal->final_score,
+            'handled_at' => $appeal->handled_at,
+        ];
     }
 }

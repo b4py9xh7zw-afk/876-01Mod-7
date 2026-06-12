@@ -32,11 +32,16 @@ class ScoreController extends Controller
         $totalCount = ExamRecord::where('status', 'graded')->count();
         $passRate = $totalCount > 0 ? ($passCount / $totalCount) * 100 : 0;
 
-        $recentRecords = ExamRecord::with(['user', 'examPaper'])
+        $recentRecords = ExamRecord::with(['user', 'examPaper', 'latestAppeal'])
             ->where('status', 'graded')
             ->orderBy('updated_at', 'desc')
             ->limit(10)
             ->get();
+
+        $pendingAppeals = \App\Models\ScoreAppeal::whereIn('status', [
+            \App\Models\ScoreAppeal::STATUS_PENDING,
+            \App\Models\ScoreAppeal::STATUS_REVIEWING,
+        ])->count();
 
         return response()->json([
             'statistics' => [
@@ -45,6 +50,7 @@ class ScoreController extends Controller
                 'total_records' => $totalRecords,
                 'avg_score' => round($avgScore, 2),
                 'pass_rate' => round($passRate, 2),
+                'pending_appeals' => $pendingAppeals,
             ],
             'recent_records' => $recentRecords,
         ]);

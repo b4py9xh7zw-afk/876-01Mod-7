@@ -158,10 +158,16 @@ class ExamController extends Controller
 
     public function myRecords(Request $request)
     {
-        $records = ExamRecord::with('examPaper')
+        $records = ExamRecord::with(['examPaper', 'latestAppeal'])
             ->where('user_id', $request->user()->id)
             ->orderBy('id', 'desc')
             ->paginate($perPage = $request->input('per_page', 15));
+
+        $records->getCollection()->transform(function ($record) {
+            $data = $record->toArray();
+            $data['appeal_status'] = $record->appeal_status;
+            return $data;
+        });
 
         return response()->json([
             'records' => $records,
@@ -174,10 +180,52 @@ class ExamController extends Controller
             return response()->json(['message' => '无权查看此记录'], 403);
         }
 
-        $record->load(['examPaper.questions', 'answers.question']);
+        $record->load(['examPaper.questions', 'answers.question', 'appeals.logs.handler']);
+
+        $data = $record->toArray();
+        $data['appeal_status'] = $record->appeal_status;
+
+        if ($record->appeals->isNotEmpty()) {
+            $data['appeals'] = $record->appeals->map(function ($appeal) {
+                return [
+                    'id' => $appeal->id,
+                    'appeal_type' => $appeal->appeal_type,
+                    'appeal_type_text' => \App\Models\ScoreAppeal::APPEAL_TYPES[$appeal->appeal_type] ?? $appeal->appeal_type,
+                    'reason' => $appeal->reason,
+                    'evidence' => $appeal->evidence,
+                    'question_id' => $appeal->question_id,
+                    'status' => $appeal->status,
+                    'status_text' => \App\Models\ScoreAppeal::STATUSES[$appeal->status] ?? $appeal->status,
+                    'original_score' => $appeal->original_score,
+                    'final_score' => $appeal->final_score,
+                    'is_closed' => $appeal->isClosed(),
+                    'created_at' => $appeal->created_at,
+                    'handled_at' => $appeal->handled_at,
+                    'logs' => $appeal->logs->map(function ($log) {
+                        return [
+                            'id' => $log->id,
+                            'action' => $log->action,
+                            'action_text' => \App\Models\ScoreAppeal::ACTIONS[$log->action] ?? $log->action,
+                            'score_adjustment' => $log->score_adjustment,
+                            'opinion' => $log->opinion,
+                            'from_status' => $log->from_status,
+                            'from_status_text' => \App\Models\ScoreAppeal::STATUSES[$log->from_status] ?? $log->from_status,
+                            'to_status' => $log->to_status,
+                            'to_status_text' => \App\Models\ScoreAppeal::STATUSES[$log->to_status] ?? $log->to_status,
+                            'handler' => $log->handler ? [
+                                'id' => $log->handler->id,
+                                'username' => $log->handler->username,
+                                'real_name' => $log->handler->real_name,
+                            ] : null,
+                            'created_at' => $log->created_at,
+                        ];
+                    }),
+                ];
+            });
+        }
 
         return response()->json([
-            'record' => $record,
+            'record' => $data,
         ]);
     }
 

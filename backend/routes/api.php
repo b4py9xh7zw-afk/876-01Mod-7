@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\ExamPaperController;
 use App\Http\Controllers\Api\QuestionController;
+use App\Http\Controllers\Api\ScoreAppealController;
 use App\Http\Controllers\Api\ScoreController;
 use Illuminate\Support\Facades\Route;
 
@@ -51,5 +52,14 @@ Route::middleware(['api', 'auth:sanctum', 'throttle:60,1'])->group(function () {
         Route::get('/statistics', [ScoreController::class, 'statistics']);
         Route::get('/ranking/{examPaper}', [ScoreController::class, 'ranking']);
         Route::get('/analysis/{examPaper}', [ScoreController::class, 'analysis']);
+    });
+
+    Route::prefix('score-appeals')->group(function () {
+        Route::get('/types', [ScoreAppealController::class, 'getTypes']);
+        Route::get('/my', [ScoreAppealController::class, 'myAppeals']);
+        Route::get('/', [ScoreAppealController::class, 'index']);
+        Route::post('/', [ScoreAppealController::class, 'store']);
+        Route::get('/{appeal}', [ScoreAppealController::class, 'show']);
+        Route::post('/{appeal}/review', [ScoreAppealController::class, 'review']);
     });
 });
